@@ -7,7 +7,7 @@ name = "chronoecho"
 version = "0.1.0"
 description = "Search historical daily-note records by date and install optional Windows startup runner."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
   { name = "ChronoEcho Contributors" }
