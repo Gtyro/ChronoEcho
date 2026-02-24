@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chronoecho"
+version = "0.1.0"
+description = "Search historical daily-note records by date and install optional Windows startup runner."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+  { name = "ChronoEcho Contributors" }
+]
+keywords = ["journal", "notes", "history", "cli"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Utilities"
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Gtyro/ChronoEcho"
+Issues = "https://github.com/Gtyro/ChronoEcho/issues"
+
+[project.scripts]
+chronoecho-history = "chronoecho_history:main"
+chronoecho-startup = "setup_startup:main"
+
+[tool.setuptools]
+py-modules = ["chronoecho_history", "setup_startup"]
