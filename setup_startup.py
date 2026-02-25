@@ -9,6 +9,34 @@ from chronoecho_history import BASE_PATH_ENV_VAR
 DEFAULT_BAT_NAME = "chronoecho_history.bat"
 
 
+def normalize_windows_cmd_path(path_value):
+    path_text = str(Path(path_value).expanduser())
+
+    # Convert WSL path (/mnt/c/...) to Windows path (C:\...)
+    if (
+        path_text.startswith("/mnt/")
+        and len(path_text) > 6
+        and path_text[5].isalpha()
+        and path_text[6] == "/"
+    ):
+        drive = path_text[5].upper()
+        rest = path_text[7:].replace("/", "\\")
+        return f"{drive}:\\{rest}" if rest else f"{drive}:\\"
+
+    # Convert MSYS-style path (/c/...) to Windows path (C:\...)
+    if (
+        path_text.startswith("/")
+        and len(path_text) > 3
+        and path_text[1].isalpha()
+        and path_text[2] == "/"
+    ):
+        drive = path_text[1].upper()
+        rest = path_text[3:].replace("/", "\\")
+        return f"{drive}:\\{rest}" if rest else f"{drive}:\\"
+
+    return path_text
+
+
 def find_default_startup_dir(appdata=None):
     raw_appdata = appdata if appdata is not None else os.environ.get("APPDATA")
     if not raw_appdata:
@@ -29,8 +57,8 @@ def build_run_command(
     python_executable=None,
     date_arg=None,
 ):
-    script = str(Path(script_path).expanduser())
-    python_path = str(Path(python_executable or "python").expanduser())
+    script = normalize_windows_cmd_path(script_path)
+    python_path = normalize_windows_cmd_path(python_executable or "python")
     cmd_parts = [python_path, script]
 
     if date_arg:
@@ -43,7 +71,7 @@ def build_bat_content(
     python_executable=None,
     base_path=None,
     date_arg=None,
-    pause=False,
+    pause=True,
 ):
     command = build_run_command(
         script_path=script_path,
@@ -84,7 +112,7 @@ def install_startup_bat(
     bat_name=DEFAULT_BAT_NAME,
     base_path=None,
     date_arg=None,
-    pause=False,
+    pause=True,
     overwrite=False,
 ):
     script = Path(script_path).expanduser().resolve()
@@ -140,9 +168,11 @@ def main(argv=None):
         help="可选，启动时固定传给脚本的日期参数 (YYYY-MM-DD 或 MM-DD)",
     )
     parser.add_argument(
-        "--pause",
-        action="store_true",
-        help="在 bat 末尾添加 pause（调试用）",
+        "--no-pause",
+        dest="pause",
+        action="store_false",
+        default=True,
+        help="禁用 pause；脚本执行后窗口会自动关闭",
     )
     parser.add_argument(
         "--overwrite",
@@ -172,6 +202,10 @@ def main(argv=None):
         return 1
 
     print(f"已写入启动脚本: {bat_path}")
+    if args.pause:
+        print("窗口将停留并等待手动关闭（pause 已启用）。")
+    else:
+        print("提示: 已禁用 pause，窗口执行后会自动关闭。")
     return 0
 
 

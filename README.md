@@ -36,20 +36,20 @@ Run directly:
 python chronoecho_history.py
 python chronoecho_history.py 2026-02-24
 python chronoecho_history.py 02-24
-python chronoecho_history.py --base-path "/path/to/life-notes"
+python chronoecho_history.py --base-path "/path/to/journal-notes"
 ```
 
 Set environment variable once:
 
 ```bash
-export CHRONOECHO_BASE_PATH="/path/to/life-notes"
+export CHRONOECHO_BASE_PATH="/path/to/journal-notes"
 python chronoecho_history.py 02-24
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:CHRONOECHO_BASE_PATH = "D:\notes\life"
+$env:CHRONOECHO_BASE_PATH = "D:\notes\journal"
 python .\chronoecho_history.py 02-24
 ```
 
@@ -74,8 +74,11 @@ Generate startup bat file:
 
 ```bash
 python setup_startup.py --help
-python setup_startup.py --base-path "D:\notes\life" --overwrite
+python setup_startup.py --base-path "D:\notes\journal" --overwrite
+python setup_startup.py --base-path "D:\notes\journal" --no-pause --overwrite
 ```
+
+By default, generated startup bat files include `pause`, so the Command Prompt window stays open for manual inspection.
 
 ## Testing
 
