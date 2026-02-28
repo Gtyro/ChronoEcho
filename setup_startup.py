@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -7,6 +8,25 @@ from chronoecho_history import BASE_PATH_ENV_VAR
 
 
 DEFAULT_BAT_NAME = "chronoecho_history.bat"
+DEFAULT_SCRIPT_NAME = "chronoecho_history.py"
+
+
+def to_local_filesystem_path(path_value):
+    path_text = str(path_value).strip()
+
+    # When running from WSL/Linux, map Windows absolute paths to /mnt/<drive>/...
+    if (
+        os.name != "nt"
+        and len(path_text) >= 3
+        and path_text[0].isalpha()
+        and path_text[1] == ":"
+        and path_text[2] in ("\\", "/")
+    ):
+        drive = path_text[0].lower()
+        rest = path_text[3:].replace("\\", "/").lstrip("/")
+        return Path(f"/mnt/{drive}/{rest}")
+
+    return Path(path_text).expanduser()
 
 
 def normalize_windows_cmd_path(path_value):
@@ -52,6 +72,41 @@ def resolve_startup_dir(startup_dir=None, appdata=None):
     return find_default_startup_dir(appdata=appdata)
 
 
+def resolve_script_path(
+    script_path,
+    script_name=DEFAULT_SCRIPT_NAME,
+    source_script_path=None,
+):
+    script = to_local_filesystem_path(script_path)
+    source_script = to_local_filesystem_path(
+        source_script_path or Path(__file__).with_name(script_name)
+    )
+
+    if not source_script.is_file():
+        raise FileNotFoundError(f"默认脚本不存在: {source_script}")
+
+    if script.exists():
+        if script.is_file():
+            return script
+        if script.is_dir():
+            candidate = script / script_name
+            if candidate.is_file():
+                return candidate
+            shutil.copy2(source_script, candidate)
+            return candidate
+        raise FileNotFoundError(f"路径不可用: {script}")
+
+    if script.suffix.lower() == ".py":
+        script.parent.mkdir(parents=True, exist_ok=True)
+        target = script
+    else:
+        script.mkdir(parents=True, exist_ok=True)
+        target = script / script_name
+
+    shutil.copy2(source_script, target)
+    return target
+
+
 def build_run_command(
     script_path,
     python_executable=None,
@@ -79,7 +134,8 @@ def build_bat_content(
         date_arg=date_arg,
     )
 
-    lines = ["@echo off", "setlocal"]
+    # Force UTF-8 code page before reading any non-ASCII path segments.
+    lines = ["@echo off", "chcp 65001 >nul", "setlocal"]
     if base_path:
         lines.append(f'set "{BASE_PATH_ENV_VAR}={base_path}"')
     lines.append(command)
@@ -115,7 +171,7 @@ def install_startup_bat(
     pause=True,
     overwrite=False,
 ):
-    script = Path(script_path).expanduser().resolve()
+    script = resolve_script_path(script_path).resolve()
     startup = resolve_startup_dir(startup_dir=startup_dir)
     content = build_bat_content(
         script_path=script,
@@ -137,8 +193,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="写入 Windows 开机启动脚本")
     parser.add_argument(
         "--script-path",
-        default=Path(__file__).with_name("chronoecho_history.py"),
-        help="要执行的 Python 脚本路径，默认是当前目录下 chronoecho_history.py",
+        default=Path(__file__).with_name(DEFAULT_SCRIPT_NAME),
+        help=(
+            "要执行的 Python 脚本路径；若传目录会使用该目录下 "
+            f"{DEFAULT_SCRIPT_NAME}，不存在则自动复制过去"
+        ),
     )
     parser.add_argument(
         "--startup-dir",
@@ -181,14 +240,9 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    script = Path(args.script_path).expanduser()
-    if not script.exists():
-        print(f"错误: 脚本不存在: {script}")
-        return 1
-
     try:
         bat_path = install_startup_bat(
-            script_path=script,
+            script_path=args.script_path,
             startup_dir=args.startup_dir,
             python_executable=args.python_executable,
             bat_name=args.bat_name,

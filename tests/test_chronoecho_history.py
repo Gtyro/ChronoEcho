@@ -50,24 +50,33 @@ class HistoryFinderTests(unittest.TestCase):
             self.assertIn("2023-02-24.md", output_text)
             self.assertIn("2024-02-24", output_text)
 
-    def test_resolve_base_path_prefers_explicit_and_then_env(self):
+    def test_resolve_base_path_precedence_explicit_env_discovery(self):
         with tempfile.TemporaryDirectory() as tmp:
             explicit = Path(tmp) / "explicit_base"
             env_path = Path(tmp) / "env_base"
+            search_root = Path(tmp) / "search_root"
+            discovered_path = search_root / "discovered_base"
             explicit.mkdir()
             env_path.mkdir()
+            (discovered_path / "2024" / "Daily").mkdir(parents=True)
 
             resolved_explicit = chronoecho_history.resolve_base_path(
                 base_path=str(explicit),
                 env={chronoecho_history.BASE_PATH_ENV_VAR: str(env_path)},
+                start_path=search_root,
             )
             resolved_env = chronoecho_history.resolve_base_path(
                 env={chronoecho_history.BASE_PATH_ENV_VAR: str(env_path)},
-                start_path=Path(tmp) / "home",
+                start_path=search_root,
+            )
+            resolved_discovered = chronoecho_history.resolve_base_path(
+                env={},
+                start_path=search_root,
             )
 
             self.assertEqual(resolved_explicit, explicit)
             self.assertEqual(resolved_env, env_path)
+            self.assertEqual(resolved_discovered, discovered_path)
 
     def test_discover_base_path_finds_year_daily_layout(self):
         with tempfile.TemporaryDirectory() as tmp:

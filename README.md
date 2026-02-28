@@ -79,6 +79,8 @@ python setup_startup.py --base-path "D:\notes\journal" --no-pause --overwrite
 ```
 
 By default, generated startup bat files include `pause`, so the Command Prompt window stays open for manual inspection.
+Generated bat files also run `chcp 65001` before executing Python, so non-ASCII paths (for example Chinese folder names) are handled correctly.
+`--script-path` accepts either a script file path or a directory path; if `chronoecho_history.py` is missing there, the tool will copy the default script into that location automatically.
 
 ## Testing
 

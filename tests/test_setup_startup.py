@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,55 @@ class SetupStartupTests(unittest.TestCase):
             )
             self.assertEqual(found, expected)
 
+    def test_to_local_filesystem_path_handles_windows_absolute_path(self):
+        original = r"C:\Users\demo\work\chronoecho_history.py"
+        converted = setup_startup.to_local_filesystem_path(original)
+        if os.name == "nt":
+            self.assertEqual(converted, Path(original))
+        else:
+            self.assertEqual(
+                converted,
+                Path("/mnt/c/Users/demo/work/chronoecho_history.py"),
+            )
+
+    def test_resolve_script_path_accepts_directory_with_default_script(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root / "chronoecho_history.py"
+            script.write_text("print('ok')\n", encoding="utf-8")
+            resolved = setup_startup.resolve_script_path(root)
+            self.assertEqual(resolved, script)
+
+    def test_resolve_script_path_copies_default_script_to_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source_script = Path(tmp) / "source.py"
+            source_script.write_text("print('copied')\n", encoding="utf-8")
+            target_dir = Path(tmp) / "target"
+            resolved = setup_startup.resolve_script_path(
+                target_dir,
+                source_script_path=source_script,
+            )
+            self.assertEqual(resolved, target_dir / "chronoecho_history.py")
+            self.assertEqual(
+                resolved.read_text(encoding="utf-8"),
+                "print('copied')\n",
+            )
+
+    def test_resolve_script_path_copies_default_script_to_missing_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source_script = Path(tmp) / "source.py"
+            source_script.write_text("print('copied to file')\n", encoding="utf-8")
+            target_file = Path(tmp) / "custom.py"
+            resolved = setup_startup.resolve_script_path(
+                target_file,
+                source_script_path=source_script,
+            )
+            self.assertEqual(resolved, target_file)
+            self.assertEqual(
+                resolved.read_text(encoding="utf-8"),
+                "print('copied to file')\n",
+            )
+
     def test_build_bat_content_contains_command_and_env(self):
         content = setup_startup.build_bat_content(
             script_path=r"C:\work dir\ChronoEcho\chronoecho_history.py",
@@ -23,7 +73,7 @@ class SetupStartupTests(unittest.TestCase):
             base_path=r"D:\notes\journal",
             date_arg="02-24",
         )
-        self.assertIn('@echo off\r\nsetlocal\r\n', content)
+        self.assertIn('@echo off\r\nchcp 65001 >nul\r\nsetlocal\r\n', content)
         self.assertIn('set "CHRONOECHO_BASE_PATH=D:\\notes\\journal"', content)
         self.assertIn('"C:\\Program Files\\Python312\\python.exe"', content)
         self.assertIn('"C:\\work dir\\ChronoEcho\\chronoecho_history.py" 02-24', content)
@@ -86,7 +136,6 @@ class SetupStartupTests(unittest.TestCase):
                 overwrite=True,
             )
             self.assertIn("updated", bat.read_text(encoding="utf-8"))
-
 
 if __name__ == "__main__":
     unittest.main()

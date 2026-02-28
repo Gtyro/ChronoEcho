@@ -65,24 +65,51 @@ def discover_base_path(start_path=None, max_depth=6):
     return best_path
 
 
-def resolve_base_path(base_path=None, env=None, start_path=None):
+def resolve_base_path_with_source(
+    base_path=None,
+    env=None,
+    start_path=None,
+):
     if base_path:
-        return Path(base_path).expanduser()
+        return Path(base_path).expanduser(), "--base-path"
 
     env_map = os.environ if env is None else env
     env_base_path = env_map.get(BASE_PATH_ENV_VAR)
     if env_base_path:
-        return Path(env_base_path).expanduser()
+        return Path(env_base_path).expanduser(), BASE_PATH_ENV_VAR
 
     discovered_path = discover_base_path(start_path=start_path)
     if discovered_path is not None:
-        return discovered_path
+        return discovered_path, "auto-discovery"
 
-    return Path(start_path or Path(__file__).resolve().parent).expanduser().resolve()
+    return (
+        Path(start_path or Path(__file__).resolve().parent).expanduser().resolve(),
+        "fallback-script-dir",
+    )
 
 
-def scan_history_records(target_date=None, base_path=None, now=None, print_func=print):
-    resolved_base_path = resolve_base_path(base_path=base_path)
+def resolve_base_path(base_path=None, env=None, start_path=None):
+    resolved_path, _ = resolve_base_path_with_source(
+        base_path=base_path,
+        env=env,
+        start_path=start_path,
+    )
+    return resolved_path
+
+
+def scan_history_records(
+    target_date=None,
+    base_path=None,
+    now=None,
+    print_func=print,
+    env=None,
+    start_path=None,
+):
+    resolved_base_path = resolve_base_path(
+        base_path=base_path,
+        env=env,
+        start_path=start_path,
+    )
     month_day, target_display = parse_target_date(target_date, now=now)
 
     try:
@@ -132,7 +159,10 @@ def main(argv=None):
         "--base-path",
         dest="base_path",
         default=None,
-        help=f"指定历史记录基础路径 (默认读取环境变量 {BASE_PATH_ENV_VAR} 或自动发现)",
+        help=(
+            f"指定历史记录基础路径 (默认读取环境变量 {BASE_PATH_ENV_VAR} "
+            "或自动发现)"
+        ),
     )
     args = parser.parse_args(argv)
 
